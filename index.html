@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>合租账单计算器</title>
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --primary-light: #eef2ff;
+      --danger: #ef4444;
+      --danger-light: #fee2e2;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --muted: #64748b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ---- Header ---- */
+    .app-header {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 12px rgba(99,102,241,.35);
+    }
+    .app-title { font-size: 18px; font-weight: 700; letter-spacing: .02em; }
+    .month-picker { display: flex; align-items: center; gap: 6px; }
+    .month-picker select {
+      background: rgba(255,255,255,.2);
+      border: 1px solid rgba(255,255,255,.35);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      outline: none;
+    }
+    .month-picker select option { color: #1e293b; background: white; }
+
+    /* ---- Tabs ---- */
+    .tab-bar {
+      display: flex;
+      background: white;
+      border-bottom: 2px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .tab-item {
+      flex: 1;
+      padding: 11px 6px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: color .2s;
+      white-space: nowrap;
+    }
+    .tab-item.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .tab-item:hover:not(.active) { color: var(--text); }
+
+    /* ---- Layout ---- */
+    .page-content { max-width: 780px; margin: 0 auto; padding: 20px 16px 48px; }
+    .section-heading { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
+    .section-sub { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+
+    /* ---- Cards ---- */
+    .card { background: var(--card); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; margin-bottom: 14px; }
+    .card-head {
+      padding: 11px 16px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-head-title { font-size: 14px; font-weight: 600; }
+    .card-body { padding: 14px 16px; }
+
+    /* ---- Buttons ---- */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all .2s;
+      font-family: inherit;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-outline { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+    .btn-outline:hover { background: var(--primary-light); }
+    .btn-ghost {
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); padding: 4px 6px; border-radius: 5px;
+      transition: all .15s; font-size: 16px; line-height: 1;
+    }
+    .btn-ghost:hover { color: var(--danger); background: var(--danger-light); }
+    .w-full { width: 100%; }
+
+    /* ---- Form ---- */
+    .input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      background: white;
+      transition: border-color .2s;
+      font-family: inherit;
+    }
+    .input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,.1); }
+
+    /* ---- Person card ---- */
+    .person-card { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
+    .person-card-head {
+      padding: 10px 14px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .name-input {
+      flex: 1; border: none; background: transparent;
+      font-size: 15px; font-weight: 600; color: var(--text);
+      outline: none; min-width: 0; font-family: inherit;
+    }
+    .name-input::placeholder { color: var(--muted); font-weight: 400; }
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 2px 9px; border-radius: 99px;
+      font-size: 12px; font-weight: 600; white-space: nowrap;
+    }
+    .badge-blue { background: #dbeafe; color: #1d4ed8; }
+    .person-card-body { padding: 12px; }
+
+    /* ---- Calendar ---- */
+    .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 6px; }
+    .cal-legend { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--muted); }
+    .cal-legend span { display: flex; align-items: center; gap: 3px; }
+    .dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+    .dot-present { background: #93c5fd; }
+    .dot-absent { background: #e2e8f0; }
+    .cal-actions { display: flex; gap: 4px; }
+    .cal-btn {
+      font-size: 11px; padding: 2px 8px; border-radius: 4px;
+      cursor: pointer; border: 1px solid var(--border);
+      background: white; color: var(--muted); transition: all .15s; font-family: inherit;
+    }
+    .cal-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+    .cal-weekday { text-align: center; font-size: 11px; font-weight: 600; color: var(--muted); padding: 4px 2px; }
+    .cal-day {
+      aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+      border-radius: 6px; font-size: 12px; font-weight: 500;
+      cursor: pointer; transition: all .12s; line-height: 1; user-select: none;
+    }
+    .cal-day.present { background: #bfdbfe; color: #1e40af; }
+    .cal-day.present:hover { background: #93c5fd; }
+    .cal-day.absent { background: #e2e8f0; color: #94a3b8; text-decoration: line-through; }
+    .cal-day.absent:hover { background: #cbd5e1; color: #64748b; }
+    .cal-day.empty { cursor: default; pointer-events: none; }
+    .cal-hint { font-size: 11px; color: var(--muted); margin-top: 6px; text-align: center; }
+
+    /* ---- Expense tab ---- */
+    .expense-item { padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .expense-item:last-child { border-bottom: none; }
+    .expense-fields { display: grid; grid-template-columns: 1fr 130px auto auto; gap: 8px; align-items: center; }
+    .amt-wrap { position: relative; }
+    .amt-prefix {
+      position: absolute; left: 10px; top: 50%;
+      transform: translateY(-50%); color: var(--muted); font-size: 14px; pointer-events: none;
+    }
+    .amt-input { padding-left: 22px !important; }
+    .upload-btn {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 7px 11px; border: 1px dashed #94a3b8;
+      border-radius: 7px; font-size: 12px; color: var(--muted);
+      cursor: pointer; background: var(--bg); transition: all .15s; white-space: nowrap;
+    }
+    .upload-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+
+    /* ---- Thumbnails ---- */
+    .thumbs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .thumb { position: relative; width: 68px; height: 68px; flex-shrink: 0; }
+    .thumb img {
+      width: 100%; height: 100%; object-fit: cover;
+      border-radius: 6px; border: 1px solid var(--border); cursor: zoom-in;
+    }
+    .thumb-del {
+      position: absolute; top: -7px; right: -7px;
+      width: 20px; height: 20px; background: var(--danger); color: white;
+      border: none; border-radius: 50%; display: flex; align-items: center;
+      justify-content: center; font-size: 11px; cursor: pointer; line-height: 1;
+      box-shadow: 0 1px 4px rgba(0,0,0,.2);
+    }
+
+    /* ---- Results ---- */
+    .result-table-wrap { overflow-x: auto; }
+    .result-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .result-table th {
+      background: var(--bg); padding: 9px 12px; text-align: right;
+      font-size: 11px; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .05em;
+      border-bottom: 2px solid var(--border); white-space: nowrap;
+    }
+    .result-table th:first-child { text-align: left; }
+    .result-table td { padding: 10px 12px; text-align: right; border-bottom: 1px solid var(--border); }
+    .result-table td:first-child { text-align: left; font-weight: 500; }
+    .result-table tr:last-child td { border-bottom: none; }
+    .money { font-weight: 600; color: var(--primary); font-variant-numeric: tabular-nums; }
+    .total-row td { background: #ede9fe; font-weight: 700; }
+    .total-row .money { color: #4c1d95; font-size: 14px; }
+
+    /* ---- Person result card ---- */
+    .person-result-card { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 12px; }
+    .person-result-head {
+      padding: 12px 16px; background: var(--bg); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .person-result-name { font-size: 16px; font-weight: 700; }
+    .person-result-total { text-align: right; }
+    .person-result-total .amt { font-size: 22px; font-weight: 800; color: var(--primary); }
+    .person-result-total .lbl { font-size: 11px; color: var(--muted); }
+    .person-result-body { padding: 12px 16px; }
+    .breakdown-row {
+      display: flex; justify-content: space-between;
+      padding: 5px 0; font-size: 13px; border-bottom: 1px solid var(--border);
+    }
+    .breakdown-row:last-of-type { border-bottom: none; }
+    .br-name { color: var(--muted); }
+    .br-amt { font-weight: 600; }
+    .evidence-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+    .evidence-lbl { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+
+    /* ---- Empty state ---- */
+    .empty-state { text-align: center; padding: 36px 20px; color: var(--muted); }
+    .empty-state .ei { font-size: 44px; margin-bottom: 10px; }
+    .empty-state .et { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .empty-state .ed { font-size: 13px; }
+
+    /* ---- Nav ---- */
+    .nav-btns { display: flex; justify-content: space-between; margin-top: 16px; }
+
+    /* ---- Lightbox ---- */
+    .lightbox {
+      position: fixed; inset: 0; background: rgba(0,0,0,.85);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000; cursor: zoom-out; padding: 20px;
+    }
+    .lightbox img { max-width: 100%; max-height: 100%; border-radius: 8px; object-fit: contain; }
+
+    /* ---- Print ---- */
+    @media print {
+      .app-header, .tab-bar, .nav-btns, .no-print { display: none !important; }
+      .page-content { padding: 0; max-width: 100%; }
+      .card, .person-result-card { break-inside: avoid; }
+    }
+
+    @media (max-width: 500px) {
+      .expense-fields { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ===== STATE =====
+const _now = new Date();
+let S = {
+  year: _now.getFullYear(),
+  month: _now.getMonth() + 1,
+  tab: 0,
+  roommates: [],  // { id, name, days: Set<number>, evidence: string[] }
+  expenses: [],   // { id, name, amount: string, receipts: string[] }
+  _rid: 1,
+  _eid: 1,
+};
+
+// ===== UTILS =====
+const daysInMonth = (y, m) => new Date(y, m, 0).getDate();
+const firstDOW   = (y, m) => new Date(y, m - 1, 1).getDay();
+const allDays    = (y, m) => { const s = new Set(); for (let i = 1; i <= daysInMonth(y, m); i++) s.add(i); return s; };
+const fmt        = n => '¥' + (+n || 0).toFixed(2);
+const esc        = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+// ===== MUTATIONS =====
+function addRoommate() {
+  S.roommates.push({ id: S._rid++, name: `室友${S.roommates.length + 1}`, days: allDays(S.year, S.month), evidence: [] });
+  render();
+}
+function delRoommate(id) { S.roommates = S.roommates.filter(r => r.id !== id); render(); }
+function setName(id, val) { const r = S.roommates.find(r => r.id === id); if (r) r.name = val; }
+
+function toggleDay(rid, d) {
+  const r = S.roommates.find(r => r.id === rid);
+  if (!r) return;
+  r.days.has(d) ? r.days.delete(d) : r.days.add(d);
+  render();
+}
+function selAll(rid)  { const r = S.roommates.find(r => r.id === rid); if (r) { r.days = allDays(S.year, S.month); render(); } }
+function selNone(rid) { const r = S.roommates.find(r => r.id === rid); if (r) { r.days = new Set(); render(); } }
+
+function addExpense() { S.expenses.push({ id: S._eid++, name: '', amount: '', receipts: [] }); render(); }
+function delExpense(id) { S.expenses = S.expenses.filter(e => e.id !== id); render(); }
+function setExpField(id, f, v) { const e = S.expenses.find(e => e.id === id); if (e) e[f] = v; }
+
+function addReceipt(eid, url)  { const e = S.expenses.find(e => e.id === eid); if (e) { e.receipts.push(url); render(); } }
+function delReceipt(eid, i)    { const e = S.expenses.find(e => e.id === eid); if (e) { e.receipts.splice(i, 1); render(); } }
+function addEvidence(rid, url) { const r = S.roommates.find(r => r.id === rid); if (r) { r.evidence.push(url); render(); } }
+function delEvidence(rid, i)   { const r = S.roommates.find(r => r.id === rid); if (r) { r.evidence.splice(i, 1); render(); } }
+
+function changeMonth(y, m) {
+  S.year = y; S.month = m;
+  S.roommates.forEach(r => r.days = allDays(y, m));
+  render();
+}
+function setTab(t) { S.tab = t; render(); }
+
+// ===== CALCULATION =====
+function calc() {
+  const totalPD = S.roommates.reduce((s, r) => s + r.days.size, 0);
+  return S.expenses
+    .map(e => ({ ...e, amount: parseFloat(e.amount) }))
+    .filter(e => e.name && e.amount > 0)
+    .map(e => ({
+      ...e, totalPD,
+      shares: S.roommates.map(r => ({
+        id: r.id, name: r.name, days: r.days.size,
+        amount: totalPD > 0 ? r.days.size * e.amount / totalPD : 0,
+      }))
+    }));
+}
+
+function personTotals() {
+  const results = calc();
+  const map = {};
+  S.roommates.forEach(r => map[r.id] = { id: r.id, name: r.name, days: r.days.size, total: 0, evidence: r.evidence, breakdown: [] });
+  results.forEach(e => e.shares.forEach(s => {
+    if (map[s.id]) { map[s.id].total += s.amount; map[s.id].breakdown.push({ name: e.name, amount: s.amount }); }
+  }));
+  return Object.values(map);
+}
+
+// ===== FILE HANDLERS =====
+function handleReceipt(evt, eid) {
+  [...evt.target.files].forEach(f => { const fr = new FileReader(); fr.onload = e => addReceipt(eid, e.target.result); fr.readAsDataURL(f); });
+}
+function handleEvidence(evt, rid) {
+  [...evt.target.files].forEach(f => { const fr = new FileReader(); fr.onload = e => addEvidence(rid, e.target.result); fr.readAsDataURL(f); });
+}
+
+function viewImg(src) {
+  const lb = document.createElement('div');
+  lb.className = 'lightbox';
+  lb.innerHTML = `<img src="${src}">`;
+  lb.onclick = () => lb.remove();
+  document.body.appendChild(lb);
+}
+
+// ===== RENDER HELPERS =====
+function renderCalendar(r) {
+  const { year: y, month: m } = S;
+  const total = daysInMonth(y, m);
+  const start = firstDOW(y, m);
+  const wds = ['日','一','二','三','四','五','六'];
+  let h = `<div class="cal-head">
+    <div class="cal-legend">
+      <span><span class="dot dot-present"></span>在家</span>
+      <span><span class="dot dot-absent"></span>不在</span>
+    </div>
+    <div class="cal-actions">
+      <button class="cal-btn" onclick="selAll(${r.id})">全选</button>
+      <button class="cal-btn" onclick="selNone(${r.id})">全不选</button>
+    </div>
+  </div>
+  <div class="cal-grid">`;
+  wds.forEach(w => h += `<div class="cal-weekday">${w}</div>`);
+  for (let i = 0; i < start; i++) h += `<div class="cal-day empty"></div>`;
+  for (let d = 1; d <= total; d++) {
+    const p = r.days.has(d);
+    h += `<div class="cal-day ${p ? 'present' : 'absent'}" onclick="toggleDay(${r.id},${d})" title="${d}日 · ${p ? '在家（点击标记不在）' : '不在（点击标记在家）'}">${d}</div>`;
+  }
+  h += `</div><div class="cal-hint">点击日期可切换「在家 / 不在」状态</div>`;
+  return h;
+}
+
+function renderThumbs(imgs, delPrefix) {
+  if (!imgs.length) return '';
+  return `<div class="thumbs">${imgs.map((src, i) => `
+    <div class="thumb">
+      <img src="${src}" onclick="viewImg(this.src)" title="点击查看大图">
+      <button class="thumb-del" onclick="${delPrefix}${i})">×</button>
+    </div>`).join('')}</div>`;
+}
+
+// ===== TAB 0: 人员设置 =====
+function renderTab0() {
+  let h = `<div class="section-heading">👥 人员与居住天数</div>
+    <div class="section-sub">添加室友并选择每人本月在家的天数（蓝色=在家，灰色划线=不在）</div>`;
+
+  if (!S.roommates.length) {
+    h += `<div class="card"><div class="card-body"><div class="empty-state">
+      <div class="ei">🏠</div>
+      <div class="et">还没有添加室友</div>
+      <div class="ed">点击下方按钮开始添加</div>
+    </div></div></div>`;
+  }
+
+  S.roommates.forEach(r => {
+    h += `<div class="person-card">
+      <div class="person-card-head">
+        <span style="font-size:18px;flex-shrink:0">👤</span>
+        <input class="name-input" type="text" value="${esc(r.name)}" placeholder="输入姓名"
+          onchange="setName(${r.id}, this.value)">
+        <span class="badge badge-blue">${r.days.size}&thinsp;天</span>
+        <button class="btn-ghost" onclick="delRoommate(${r.id})" title="删除此室友">🗑️</button>
+      </div>
+      <div class="person-card-body">${renderCalendar(r)}</div>
+    </div>`;
+  });
+
+  h += `<button class="btn btn-outline w-full" onclick="addRoommate()" style="margin-top:4px;">＋ 添加室友</button>`;
+  return h;
+}
+
+// ===== TAB 1: 账单费用 =====
+function renderTab1() {
+  let h = `<div class="section-heading">📋 账单费用</div>
+    <div class="section-sub">填写各项费用金额，可上传账单截图作为凭证</div>
+    <div class="card"><div class="card-body">`;
+
+  if (!S.expenses.length) {
+    h += `<div class="empty-state">
+      <div class="ei">📄</div>
+      <div class="et">暂无账单项目</div>
+      <div class="ed">点击下方按钮添加费用（如电费、水费、网费等）</div>
+    </div>`;
+  } else {
+    S.expenses.forEach(e => {
+      h += `<div class="expense-item">
+        <div class="expense-fields">
+          <input class="input" type="text" placeholder="费用名目（如：电费）"
+            value="${esc(e.name)}" onchange="setExpField(${e.id},'name',this.value)">
+          <div class="amt-wrap">
+            <span class="amt-prefix">¥</span>
+            <input class="input amt-input" type="number" placeholder="0.00"
+              value="${esc(e.amount)}" min="0" step="0.01"
+              onchange="setExpField(${e.id},'amount',this.value)">
+          </div>
+          <label class="upload-btn" title="上传账单截图">
+            📷 账单凭证
+            <input type="file" accept="image/*" multiple style="display:none"
+              onchange="handleReceipt(event,${e.id})">
+          </label>
+          <button class="btn-ghost" onclick="delExpense(${e.id})" title="删除">🗑️</button>
+        </div>
+        ${renderThumbs(e.receipts, `delReceipt(${e.id},`)}
+      </div>`;
+    });
+  }
+
+  h += `</div>
+    <div style="padding:10px 16px;border-top:1px solid var(--border);">
+      <button class="btn btn-outline w-full" onclick="addExpense()">＋ 添加费用项目</button>
+    </div>
+  </div>`;
+  return h;
+}
+
+// ===== TAB 2: 分摊结算 =====
+function renderTab2() {
+  const results = calc();
+  const ptotals = personTotals();
+
+  if (!S.roommates.length || !results.length) {
+    return `<div class="section-heading">🧮 分摊结算</div>
+      <div class="section-sub">请先完成人员设置和账单填写</div>
+      <div class="card"><div class="card-body"><div class="empty-state">
+        <div class="ei">🧾</div>
+        <div class="et">暂无可计算内容</div>
+        <div class="ed">请先添加室友和至少一项账单金额</div>
+      </div></div></div>`;
+  }
+
+  const grandTotal = results.reduce((s, e) => s + e.amount, 0);
+
+  let h = `<div class="section-heading">🧮 分摊结算</div>
+    <div class="section-sub">${S.year}年${S.month}月 &nbsp;·&nbsp; ${S.roommates.length} 人 &nbsp;·&nbsp; 总计 ${fmt(grandTotal)}</div>
+
+    <div class="card">
+      <div class="card-head"><div class="card-head-title">📊 费用明细表</div></div>
+      <div class="result-table-wrap">
+        <table class="result-table">
+          <thead><tr>
+            <th>费用项目</th>
+            ${S.roommates.map(r => `<th>${esc(r.name)}<br><span style="font-weight:400;color:var(--muted)">${r.days.size}天</span></th>`).join('')}
+            <th>总额</th>
+          </tr></thead>
+          <tbody>`;
+
+  results.forEach(e => {
+    h += `<tr>
+      <td>${esc(e.name)}</td>
+      ${e.shares.map(s => `<td class="money">${fmt(s.amount)}</td>`).join('')}
+      <td class="money">${fmt(e.amount)}</td>
+    </tr>`;
+  });
+
+  h += `<tr class="total-row">
+      <td>合计</td>
+      ${ptotals.map(p => `<td class="money">${fmt(p.total)}</td>`).join('')}
+      <td class="money">${fmt(grandTotal)}</td>
+    </tr>
+  </tbody></table></div></div>`;
+
+  h += `<div style="font-size:16px;font-weight:700;margin-bottom:12px;">💳 各人账单与付款凭证</div>`;
+
+  ptotals.forEach(p => {
+    h += `<div class="person-result-card">
+      <div class="person-result-head">
+        <div>
+          <div class="person-result-name">${esc(p.name)}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">本月在家 ${p.days} 天</div>
+        </div>
+        <div class="person-result-total">
+          <div class="amt">${fmt(p.total)}</div>
+          <div class="lbl">应付金额</div>
+        </div>
+      </div>
+      <div class="person-result-body">
+        ${p.breakdown.map(b => `
+          <div class="breakdown-row">
+            <span class="br-name">${esc(b.name)}</span>
+            <span class="br-amt">${fmt(b.amount)}</span>
+          </div>`).join('')}
+        <div class="evidence-section">
+          <div class="evidence-lbl">📎 上传付款凭证（截图）</div>
+          <label class="upload-btn">
+            上传付款截图
+            <input type="file" accept="image/*" multiple style="display:none"
+              onchange="handleEvidence(event,${p.id})">
+          </label>
+          ${renderThumbs(p.evidence, `delEvidence(${p.id},`)}
+        </div>
+      </div>
+    </div>`;
+  });
+
+  h += `<div class="no-print" style="margin-top:8px;">
+    <button class="btn btn-primary w-full" onclick="window.print()">🖨️ 打印 / 导出结算单</button>
+  </div>`;
+
+  return h;
+}
+
+// ===== MAIN RENDER =====
+function render() {
+  const tabs = ['👥 人员设置', '📋 账单费用', '🧮 分摊结算'];
+  const years = Array.from({length: 5}, (_, i) => _now.getFullYear() - 1 + i);
+  const months = Array.from({length: 12}, (_, i) => i + 1);
+
+  let content;
+  if (S.tab === 0) content = renderTab0();
+  else if (S.tab === 1) content = renderTab1();
+  else content = renderTab2();
+
+  document.getElementById('app').innerHTML = `
+    <div class="app-header no-print">
+      <div class="app-title">🏠 合租账单计算器</div>
+      <div class="month-picker">
+        <select onchange="changeMonth(parseInt(this.value),${S.month})">
+          ${years.map(y => `<option value="${y}"${y === S.year ? ' selected' : ''}>${y}年</option>`).join('')}
+        </select>
+        <select onchange="changeMonth(${S.year},parseInt(this.value))">
+          ${months.map(m => `<option value="${m}"${m === S.month ? ' selected' : ''}>${m}月</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="tab-bar no-print">
+      ${tabs.map((t, i) => `<div class="tab-item${i === S.tab ? ' active' : ''}" onclick="setTab(${i})">${t}</div>`).join('')}
+    </div>
+    <div class="page-content">
+      ${content}
+      <div class="nav-btns no-print">
+        ${S.tab > 0 ? `<button class="btn btn-outline" onclick="setTab(${S.tab - 1})">← 上一步</button>` : '<div></div>'}
+        ${S.tab < 2 ? `<button class="btn btn-primary" onclick="setTab(${S.tab + 1})">下一步 →</button>` : '<div></div>'}
+      </div>
+    </div>`;
+}
+
+render();
+</script>
+</body>
+</html>
